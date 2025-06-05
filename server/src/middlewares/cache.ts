@@ -36,10 +36,10 @@ const middleware = async (ctx: Context, next: any) => {
       const cacheEntry = await cacheStore.get(key);
       if (!cacheEntry) {
         loggy.info(`INIT key: ${key}`);
-        await cacheStore.set(key, "cache-init");
+        await cacheStore.set(key, { init: "" });
         break;
       }
-      if (cacheEntry !== "cache-init") {
+      if (!cacheEntry.init) {
         cacheHit = true;
         break;
       }

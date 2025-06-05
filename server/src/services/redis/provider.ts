@@ -55,7 +55,7 @@ export class RedisCacheProvider implements CacheProvider {
     if (!this.ready) return null;
 
     try {
-      if (val === "cache-init") {
+      if (val.init) {
         await this.client.set(key, val, 'EX', 1000 * 10);
         return val;
       }
