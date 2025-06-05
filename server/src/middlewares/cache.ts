@@ -37,7 +37,7 @@ const middleware = async (ctx: Context, next: any) => {
     ) {
       let cacheEntry = null;
       let cacheHit = false;
-      for (let i = 0; i < 1000; i++) {
+      for (let i = 0; i < 20; i++) {
         cacheEntry = await cacheStore.get(key);
         if (!cacheEntry) {
           loggy.info(`INIT key: ${key}`);
@@ -48,7 +48,7 @@ const middleware = async (ctx: Context, next: any) => {
           cacheHit = true;
           break;
         }
-        await sleep(10);
+        await sleep(500);
       }
       if (cacheEntry && cacheHit) {
         loggy.info(`HIT with key: ${key}`);
