@@ -55,12 +55,12 @@ export class RedisCacheProvider implements CacheProvider {
     if (!this.ready) return null;
 
     try {
-      if (val.init) {
-        await this.client.set(key, val, 'EX', 1000 * 10);
-        return val;
-      }
       const ttl = Number(this.strapi.plugin('strapi-cache').config('ttl'));
       const serialized = JSON.stringify(val);
+      if (val.init) {
+        await this.client.set(key, serialized, 'EX', 1000 * 10);
+        return val;
+      }
       if (ttl > 0) {
         await this.client.set(key, serialized, 'EX', ttl);
       } else {
