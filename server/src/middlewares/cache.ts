@@ -37,7 +37,7 @@ const middleware = async (ctx: Context, next: any) => {
     ) {
       let cacheEntry = null;
       let cacheHit = false;
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < 100; i++) {
         loggy.info(`Loop: [${i}]`);
         cacheEntry = await cacheStore.get(key);
         if (!cacheEntry) {
@@ -49,7 +49,7 @@ const middleware = async (ctx: Context, next: any) => {
           cacheHit = true;
           break;
         }
-        await sleep(500);
+        await sleep(100);
       }
       if (cacheEntry && cacheHit) {
         loggy.info(`HIT with key: ${key}`);

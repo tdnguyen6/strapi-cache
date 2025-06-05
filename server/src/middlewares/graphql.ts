@@ -71,10 +71,11 @@ const middleware = async (ctx: any, next: any) => {
     ) {
       let cacheEntry = null;
       let cacheHit = false;
-      for (let i = 0; i < 1000; i++) {
+      for (let i = 0; i < 100; i++) {
+        loggy.info(`Loop: [${i}]`);
         cacheEntry = await cacheStore.get(key);
         if (!cacheEntry) {
-          loggy.info(`GraphQL INIT key: ${key}`);
+          loggy.info(`INIT key: ${key}`);
           await cacheStore.set(key, { init: true });
           break;
         }
@@ -82,10 +83,10 @@ const middleware = async (ctx: any, next: any) => {
           cacheHit = true;
           break;
         }
-        await sleep(10);
+        await sleep(100);
       }
       if (cacheEntry && cacheHit) {
-        loggy.info(`GraphQL HIT with key: ${key}`);
+        loggy.info(`HIT with key: ${key}`);
         ctx.status = 200;
         ctx.body = cacheEntry.body;
         if (cacheHeaders) {
