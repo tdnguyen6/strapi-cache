@@ -46,7 +46,7 @@ const middleware = async (ctx: any, next: any) => {
   const noCache = cacheControlHeader && cacheControlHeader.includes('no-cache');
   const authorizationHeader = ctx.request.headers['authorization'];
   const statusIsCachable = (ctx.status >= 200 && ctx.status < 300) || ctx.status == 404;
-
+  const routeIsCachable = url.startsWith('/graphql');
   if (authorizationHeader && !cacheAuthorizedRequests) {
     loggy.info(`Authorized request bypassing cache: ${key}`);
     await next();
@@ -64,28 +64,34 @@ const middleware = async (ctx: any, next: any) => {
   // }
 
   if (!noCache) {
-    let cacheEntry = null;
-    let cacheHit = false;
-    while (true) {
-      const cacheEntry = await cacheStore.get(key);
-      if (!cacheEntry) {
-        loggy.info(`INIT key: ${key}`);
-        await cacheStore.set(key, { init: "" });
-        break;
+    if (
+      ctx.method === 'POST' &&
+      statusIsCachable &&
+      routeIsCachable
+    ) {
+      let cacheEntry = null;
+      let cacheHit = false;
+      while (true) {
+        const cacheEntry = await cacheStore.get(key);
+        if (!cacheEntry) {
+          loggy.info(`GraphQL INIT key: ${key}`);
+          await cacheStore.set(key, { init: true });
+          break;
+        }
+        if (!cacheEntry.init) {
+          cacheHit = true;
+          break;
+        }
+        sleep(10);
       }
-      if (!cacheEntry.init) {
-        cacheHit = true;
-        break;
-      }
-      sleep(10);
-    }
-    if (cacheHit) {
-      loggy.info(`HIT with key: ${key}`);
-      ctx.status = 200;
-      ctx.body = cacheEntry.body;
-      if (cacheHeaders) {
-        ctx.set(cacheEntry.headers);
-        return;
+      if (cacheHit) {
+        loggy.info(`GraphQL HIT with key: ${key}`);
+        ctx.status = 200;
+        ctx.body = cacheEntry.body;
+        if (cacheHeaders) {
+          ctx.set(cacheEntry.headers);
+          return;
+        }
       }
     }
   }
@@ -95,9 +101,9 @@ const middleware = async (ctx: any, next: any) => {
   if (
     ctx.method === 'POST' &&
     statusIsCachable &&
-    url.startsWith('/graphql')
+    routeIsCachable
   ) {
-    loggy.info(`MISS with key: ${key}`);
+    loggy.info(`GraphQL MISS with key: ${key}`);
     const headers = ctx.request.headers;
     const authorizationHeader = headers['authorization'];
     if (authorizationHeader && !cacheAuthorizedRequests) {

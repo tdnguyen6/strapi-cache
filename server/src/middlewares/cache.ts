@@ -29,29 +29,35 @@ const middleware = async (ctx: Context, next: any) => {
     return;
   }
 
-  if (!noCache && routeIsCachable) {
-    let cacheEntry = null;
-    let cacheHit = false;
-    while (true) {
-      const cacheEntry = await cacheStore.get(key);
-      if (!cacheEntry) {
-        loggy.info(`INIT key: ${key}`);
-        await cacheStore.set(key, { init: "" });
-        break;
+  if (!noCache) {
+    if (
+      ctx.method === 'GET' &&
+      statusIsCachable &&
+      routeIsCachable
+    ) {
+      let cacheEntry = null;
+      let cacheHit = false;
+      while (true) {
+        const cacheEntry = await cacheStore.get(key);
+        if (!cacheEntry) {
+          loggy.info(`INIT key: ${key}`);
+          await cacheStore.set(key, { init: true });
+          break;
+        }
+        if (!cacheEntry.init) {
+          cacheHit = true;
+          break;
+        }
+        sleep(10);
       }
-      if (!cacheEntry.init) {
-        cacheHit = true;
-        break;
-      }
-      sleep(10);
-    }
-    if (cacheHit) {
-      loggy.info(`HIT with key: ${key}`);
-      ctx.status = 200;
-      ctx.body = cacheEntry.body;
-      if (cacheHeaders) {
-        ctx.set(cacheEntry.headers);
-        return;
+      if (cacheHit) {
+        loggy.info(`HIT with key: ${key}`);
+        ctx.status = 200;
+        ctx.body = cacheEntry.body;
+        if (cacheHeaders) {
+          ctx.set(cacheEntry.headers);
+          return;
+        }
       }
     }
   }
@@ -60,8 +66,8 @@ const middleware = async (ctx: Context, next: any) => {
 
   if (
     ctx.method === 'GET' &&
-      statusIsCachable &&
-      routeIsCachable
+    statusIsCachable &&
+    routeIsCachable
   ) {
     loggy.info(`MISS with key: ${key}`);
 
