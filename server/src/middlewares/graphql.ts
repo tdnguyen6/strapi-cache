@@ -84,11 +84,11 @@ const middleware = async (ctx: any, next: any) => {
         }
         await sleep(10);
       }
-      if (cacheHit) {
+      if (cacheEntry && cacheHit) {
         loggy.info(`GraphQL HIT with key: ${key}`);
         ctx.status = 200;
         ctx.body = cacheEntry.body;
-        if (cacheEntry && cacheHit) {
+        if (cacheHeaders) {
           ctx.set(cacheEntry.headers);
           return;
         }
