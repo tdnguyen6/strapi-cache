@@ -37,7 +37,7 @@ const middleware = async (ctx: Context, next: any) => {
     ) {
       let cacheEntry = null;
       let cacheHit = false;
-      while (true) {
+      for (let i = 0; i < 1000; i++) {
         const cacheEntry = await cacheStore.get(key);
         if (!cacheEntry) {
           loggy.info(`INIT key: ${key}`);
