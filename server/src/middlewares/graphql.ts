@@ -82,7 +82,7 @@ const middleware = async (ctx: any, next: any) => {
           cacheHit = true;
           break;
         }
-        sleep(10);
+        await sleep(10);
       }
       if (cacheHit) {
         loggy.info(`GraphQL HIT with key: ${key}`);

@@ -48,7 +48,7 @@ const middleware = async (ctx: Context, next: any) => {
           cacheHit = true;
           break;
         }
-        sleep(10);
+        await sleep(10);
       }
       if (cacheHit) {
         loggy.info(`HIT with key: ${key}`);
