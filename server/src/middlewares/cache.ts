@@ -4,6 +4,7 @@ import { CacheService } from '../../src/types/cache.types';
 import { loggy } from '../utils/log';
 import Stream from 'stream';
 import { decodeBufferToText, decompressBuffer, streamToBuffer } from '../../src/utils/body';
+import { sleep } from '../utils/withTimeout';
 
 const middleware = async (ctx: Context, next: any) => {
   const cacheService = strapi.plugin('strapi-cache').services.service as CacheService;
@@ -15,7 +16,6 @@ const middleware = async (ctx: Context, next: any) => {
   const cacheStore = cacheService.getCacheInstance();
   const { url } = ctx.request;
   const key = generateCacheKey(ctx);
-  const cacheEntry = await cacheStore.get(key);
   const cacheControlHeader = ctx.request.headers['cache-control'];
   const noCache = cacheControlHeader && cacheControlHeader.includes('no-cache');
   const routeIsCachable =
@@ -29,19 +29,39 @@ const middleware = async (ctx: Context, next: any) => {
     return;
   }
 
-  if (cacheEntry && !noCache) {
-    loggy.info(`HIT with key: ${key}`);
-    ctx.status = 200;
-    ctx.body = cacheEntry.body;
-    if (cacheHeaders) {
-      ctx.set(cacheEntry.headers);
+  if (!noCache) {
+    let cacheEntry = null;
+    let cacheHit = false;
+    while (true) {
+      const cacheEntry = await cacheStore.get(key);
+      if (!cacheEntry) {
+        loggy.info(`INIT key: ${key}`);
+        await cacheStore.set(key, "cache-init");
+        break;
+      }
+      if (cacheEntry !== "cache-init") {
+        cacheHit = true;
+        break;
+      }
+      sleep(10);
     }
-    return;
+    if (cacheHit) {
+      loggy.info(`HIT with key: ${key}`);
+      ctx.status = 200;
+      ctx.body = cacheEntry.body;
+      if (cacheHeaders) {
+        ctx.set(cacheEntry.headers);
+        return;
+      }
+    }
   }
 
   await next();
 
-  if (ctx.method === 'GET' && ctx.status >= 200 && ctx.status < 300 && routeIsCachable) {
+  if (
+    ctx.method === 'GET' && routeIsCachable &&
+    ((ctx.status >= 200 && ctx.status < 300) || ctx.status == 404)
+  ) {
     loggy.info(`MISS with key: ${key}`);
 
     if (ctx.body instanceof Stream) {
