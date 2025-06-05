@@ -4,6 +4,7 @@ import Stream, { Readable } from 'stream';
 import { loggy } from '../utils/log';
 import { CacheService } from '../../src/types/cache.types';
 import { decodeBufferToText, decompressBuffer, streamToBuffer } from '../../src/utils/body';
+import { sleep } from '../utils/withTimeout';
 
 const middleware = async (ctx: any, next: any) => {
   const cacheService = strapi.plugin('strapi-cache').services.service as CacheService;
@@ -40,10 +41,11 @@ const middleware = async (ctx: any, next: any) => {
   }
 
   const key = generateGraphqlCacheKey(body);
-  const cacheEntry = await cacheStore.get(key);
+  // const cacheEntry = await cacheStore.get(key);
   const cacheControlHeader = ctx.request.headers['cache-control'];
   const noCache = cacheControlHeader && cacheControlHeader.includes('no-cache');
   const authorizationHeader = ctx.request.headers['authorization'];
+  const statusIsCachable = (ctx.status >= 200 && ctx.status < 300) || ctx.status == 404;
 
   if (authorizationHeader && !cacheAuthorizedRequests) {
     loggy.info(`Authorized request bypassing cache: ${key}`);
@@ -51,22 +53,48 @@ const middleware = async (ctx: any, next: any) => {
     return;
   }
 
-  if (cacheEntry && !noCache) {
-    loggy.info(`HIT with key: ${key}`);
-    ctx.status = 200;
-    ctx.body = cacheEntry.body;
-    if (cacheHeaders) {
-      ctx.set(cacheEntry.headers);
+  // if (cacheEntry && !noCache) {
+  //   loggy.info(`HIT with key: ${key}`);
+  //   ctx.status = 200;
+  //   ctx.body = cacheEntry.body;
+  //   if (cacheHeaders) {
+  //     ctx.set(cacheEntry.headers);
+  //   }
+  //   return;
+  // }
+
+  if (!noCache) {
+    let cacheEntry = null;
+    let cacheHit = false;
+    while (true) {
+      const cacheEntry = await cacheStore.get(key);
+      if (!cacheEntry) {
+        loggy.info(`INIT key: ${key}`);
+        await cacheStore.set(key, { init: "" });
+        break;
+      }
+      if (!cacheEntry.init) {
+        cacheHit = true;
+        break;
+      }
+      sleep(10);
     }
-    return;
+    if (cacheHit) {
+      loggy.info(`HIT with key: ${key}`);
+      ctx.status = 200;
+      ctx.body = cacheEntry.body;
+      if (cacheHeaders) {
+        ctx.set(cacheEntry.headers);
+        return;
+      }
+    }
   }
 
   await next();
 
   if (
     ctx.method === 'POST' &&
-    ctx.status >= 200 &&
-    ctx.status < 300 &&
+    statusIsCachable &&
     url.startsWith('/graphql')
   ) {
     loggy.info(`MISS with key: ${key}`);
