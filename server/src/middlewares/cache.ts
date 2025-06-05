@@ -29,7 +29,7 @@ const middleware = async (ctx: Context, next: any) => {
     return;
   }
 
-  if (!noCache) {
+  if (!noCache && routeIsCachable) {
     let cacheEntry = null;
     let cacheHit = false;
     while (true) {
@@ -59,8 +59,9 @@ const middleware = async (ctx: Context, next: any) => {
   await next();
 
   if (
-    ctx.method === 'GET' && routeIsCachable &&
-    ((ctx.status >= 200 && ctx.status < 300) || ctx.status == 404)
+    ctx.method === 'GET' &&
+    ((ctx.status >= 200 && ctx.status < 300) || ctx.status == 404) &&
+     routeIsCachable
   ) {
     loggy.info(`MISS with key: ${key}`);
 
