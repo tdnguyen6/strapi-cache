@@ -90,8 +90,8 @@ const middleware = async (ctx: any, next: any) => {
         ctx.body = cacheEntry.body;
         if (cacheHeaders) {
           ctx.set(cacheEntry.headers);
-          return;
         }
+        return;
       }
     }
   }
