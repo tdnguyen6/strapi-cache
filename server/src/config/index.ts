@@ -8,6 +8,8 @@ export default {
     cacheableRoutes: [],
     provider: 'memory',
     redisConfig: env('REDIS_URL'),
+    redisClusterNodes: env('REDIS_CLUSTER_NODES'),
+    redisClusterOptions: env('REDIS_CLUSTER_OPTIONS'),
     cacheHeaders: true,
     cacheAuthorizedRequests: false,
     cacheGetTimeoutInMs: 1000,

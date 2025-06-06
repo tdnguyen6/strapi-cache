@@ -4,6 +4,7 @@ import Stream, { Readable } from 'stream';
 import { loggy } from '../utils/log';
 import { CacheService } from '../../src/types/cache.types';
 import { decodeBufferToText, decompressBuffer, streamToBuffer } from '../../src/utils/body';
+import { sleep } from '../utils/withTimeout';
 
 const middleware = async (ctx: any, next: any) => {
   const cacheService = strapi.plugin('strapi-cache').services.service as CacheService;
@@ -40,36 +41,70 @@ const middleware = async (ctx: any, next: any) => {
   }
 
   const key = generateGraphqlCacheKey(body);
-  const cacheEntry = await cacheStore.get(key);
+  // const cacheEntry = await cacheStore.get(key);
   const cacheControlHeader = ctx.request.headers['cache-control'];
   const noCache = cacheControlHeader && cacheControlHeader.includes('no-cache');
   const authorizationHeader = ctx.request.headers['authorization'];
-
+  const statusIsCachable = (ctx.status >= 200 && ctx.status < 300) || ctx.status == 404;
+  const routeIsCachable = url.startsWith('/graphql');
   if (authorizationHeader && !cacheAuthorizedRequests) {
     loggy.info(`Authorized request bypassing cache: ${key}`);
     await next();
     return;
   }
 
-  if (cacheEntry && !noCache) {
-    loggy.info(`HIT with key: ${key}`);
-    ctx.status = 200;
-    ctx.body = cacheEntry.body;
-    if (cacheHeaders) {
-      ctx.set(cacheEntry.headers);
+  // if (cacheEntry && !noCache) {
+  //   loggy.info(`HIT with key: ${key}`);
+  //   ctx.status = 200;
+  //   ctx.body = cacheEntry.body;
+  //   if (cacheHeaders) {
+  //     ctx.set(cacheEntry.headers);
+  //   }
+  //   return;
+  // }
+
+  if (!noCache) {
+    if (
+      ctx.method === 'POST' &&
+      statusIsCachable &&
+      routeIsCachable
+    ) {
+      let cacheEntry = null;
+      let cacheHit = false;
+      for (let i = 0; i < 100; i++) {
+        loggy.info(`Loop: [${i}]`);
+        cacheEntry = await cacheStore.get(key);
+        if (!cacheEntry) {
+          loggy.info(`INIT key: ${key}`);
+          await cacheStore.set(key, { init: true });
+          break;
+        }
+        if (!cacheEntry.init) {
+          cacheHit = true;
+          break;
+        }
+        await sleep(100);
+      }
+      if (cacheEntry && cacheHit) {
+        loggy.info(`HIT with key: ${key}`);
+        ctx.status = 200;
+        ctx.body = cacheEntry.body;
+        if (cacheHeaders) {
+          ctx.set(cacheEntry.headers);
+        }
+        return;
+      }
     }
-    return;
   }
 
   await next();
 
   if (
     ctx.method === 'POST' &&
-    ctx.status >= 200 &&
-    ctx.status < 300 &&
-    url.startsWith('/graphql')
+    statusIsCachable &&
+    routeIsCachable
   ) {
-    loggy.info(`MISS with key: ${key}`);
+    loggy.info(`GraphQL MISS with key: ${key}`);
     const headers = ctx.request.headers;
     const authorizationHeader = headers['authorization'];
     if (authorizationHeader && !cacheAuthorizedRequests) {

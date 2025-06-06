@@ -4,6 +4,7 @@ import { CacheService } from '../../src/types/cache.types';
 import { loggy } from '../utils/log';
 import Stream from 'stream';
 import { decodeBufferToText, decompressBuffer, streamToBuffer } from '../../src/utils/body';
+import { sleep } from '../utils/withTimeout';
 
 const middleware = async (ctx: Context, next: any) => {
   const cacheService = strapi.plugin('strapi-cache').services.service as CacheService;
@@ -15,33 +16,60 @@ const middleware = async (ctx: Context, next: any) => {
   const cacheStore = cacheService.getCacheInstance();
   const { url } = ctx.request;
   const key = generateCacheKey(ctx);
-  const cacheEntry = await cacheStore.get(key);
   const cacheControlHeader = ctx.request.headers['cache-control'];
   const noCache = cacheControlHeader && cacheControlHeader.includes('no-cache');
   const routeIsCachable =
     cacheableRoutes.some((route) => url.startsWith(route)) ||
     (cacheableRoutes.length === 0 && url.startsWith('/api'));
   const authorizationHeader = ctx.request.headers['authorization'];
-
+  const statusIsCachable = (ctx.status >= 200 && ctx.status < 300) || ctx.status == 404;
   if (authorizationHeader && !cacheAuthorizedRequests) {
     loggy.info(`Authorized request bypassing cache: ${key}`);
     await next();
     return;
   }
 
-  if (cacheEntry && !noCache) {
-    loggy.info(`HIT with key: ${key}`);
-    ctx.status = 200;
-    ctx.body = cacheEntry.body;
-    if (cacheHeaders) {
-      ctx.set(cacheEntry.headers);
+  if (!noCache) {
+    if (
+      ctx.method === 'GET' &&
+      statusIsCachable &&
+      routeIsCachable
+    ) {
+      let cacheEntry = null;
+      let cacheHit = false;
+      for (let i = 0; i < 100; i++) {
+        loggy.info(`Loop: [${i}]`);
+        cacheEntry = await cacheStore.get(key);
+        if (!cacheEntry) {
+          loggy.info(`INIT key: ${key}`);
+          await cacheStore.set(key, { init: true });
+          break;
+        }
+        if (!cacheEntry.init) {
+          cacheHit = true;
+          break;
+        }
+        await sleep(100);
+      }
+      if (cacheEntry && cacheHit) {
+        loggy.info(`HIT with key: ${key}`);
+        ctx.status = 200;
+        ctx.body = cacheEntry.body;
+        if (cacheHeaders) {
+          ctx.set(cacheEntry.headers);
+        }
+        return;
+      }
     }
-    return;
   }
 
   await next();
 
-  if (ctx.method === 'GET' && ctx.status >= 200 && ctx.status < 300 && routeIsCachable) {
+  if (
+    ctx.method === 'GET' &&
+    statusIsCachable &&
+    routeIsCachable
+  ) {
     loggy.info(`MISS with key: ${key}`);
 
     if (ctx.body instanceof Stream) {

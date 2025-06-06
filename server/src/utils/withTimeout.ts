@@ -15,3 +15,5 @@ export const withTimeout = (callback: () => Promise<any>, ms: number) => {
     }),
   ]);
 };
+
+export const sleep = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
