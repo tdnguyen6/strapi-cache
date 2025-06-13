@@ -45,7 +45,7 @@ const middleware = async (ctx: any, next: any) => {
   const cacheControlHeader = ctx.request.headers['cache-control'];
   const noCache = cacheControlHeader && cacheControlHeader.includes('no-cache');
   const authorizationHeader = ctx.request.headers['authorization'];
-  const statusIsCachable = (ctx.status >= 200 && ctx.status < 300) || ctx.status == 404;
+  const statusIsCachable = () => (ctx.status >= 200 && ctx.status < 300) || ctx.status == 404;
   const routeIsCachable = url.startsWith('/graphql');
   if (authorizationHeader && !cacheAuthorizedRequests) {
     loggy.info(`Authorized request bypassing cache: ${key}`);
@@ -66,7 +66,7 @@ const middleware = async (ctx: any, next: any) => {
   if (!noCache) {
     if (
       ctx.method === 'POST' &&
-      statusIsCachable &&
+      statusIsCachable() &&
       routeIsCachable
     ) {
       let cacheEntry = null;
@@ -101,7 +101,7 @@ const middleware = async (ctx: any, next: any) => {
 
   if (
     ctx.method === 'POST' &&
-    statusIsCachable &&
+    statusIsCachable() &&
     routeIsCachable
   ) {
     loggy.info(`GraphQL MISS with key: ${key}`);
