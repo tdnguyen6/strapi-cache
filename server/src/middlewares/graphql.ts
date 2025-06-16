@@ -8,9 +8,6 @@ import { decodeBufferToText, decompressBuffer, streamToBuffer } from '../../src/
 const middleware = async (ctx: any, next: any) => {
   const cacheService = strapi.plugin('strapi-cache').services.service as CacheService;
   const cacheHeaders = strapi.plugin('strapi-cache').config('cacheHeaders') as boolean;
-  const cacheAuthorizedRequests = strapi
-    .plugin('strapi-cache')
-    .config('cacheAuthorizedRequests') as boolean;
   const cacheStore = cacheService.getCacheInstance();
   const { url } = ctx.request;
 
@@ -43,13 +40,6 @@ const middleware = async (ctx: any, next: any) => {
   const cacheEntry = await cacheStore.get(key);
   const cacheControlHeader = ctx.request.headers['cache-control'];
   const noCache = cacheControlHeader && cacheControlHeader.includes('no-cache');
-  const authorizationHeader = ctx.request.headers['authorization'];
-
-  if (authorizationHeader && !cacheAuthorizedRequests) {
-    loggy.info(`Authorized request bypassing cache: ${key}`);
-    await next();
-    return;
-  }
 
   if (cacheEntry && !noCache) {
     loggy.info(`HIT with key: ${key}`);
@@ -70,12 +60,6 @@ const middleware = async (ctx: any, next: any) => {
     url.startsWith('/graphql')
   ) {
     loggy.info(`MISS with key: ${key}`);
-    const headers = ctx.request.headers;
-    const authorizationHeader = headers['authorization'];
-    if (authorizationHeader && !cacheAuthorizedRequests) {
-      loggy.info(`Authorized request not caching: ${key}`);
-      return;
-    }
 
     if (ctx.body instanceof Stream) {
       const buf = await streamToBuffer(ctx.body);

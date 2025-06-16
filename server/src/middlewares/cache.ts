@@ -9,9 +9,6 @@ const middleware = async (ctx: Context, next: any) => {
   const cacheService = strapi.plugin('strapi-cache').services.service as CacheService;
   const cacheableRoutes = strapi.plugin('strapi-cache').config('cacheableRoutes') as string[];
   const cacheHeaders = strapi.plugin('strapi-cache').config('cacheHeaders') as boolean;
-  const cacheAuthorizedRequests = strapi
-    .plugin('strapi-cache')
-    .config('cacheAuthorizedRequests') as boolean;
   const cacheStore = cacheService.getCacheInstance();
   const { url } = ctx.request;
   const key = generateCacheKey(ctx);
@@ -21,13 +18,6 @@ const middleware = async (ctx: Context, next: any) => {
   const routeIsCachable =
     cacheableRoutes.some((route) => url.startsWith(route)) ||
     (cacheableRoutes.length === 0 && url.startsWith('/api'));
-  const authorizationHeader = ctx.request.headers['authorization'];
-
-  if (authorizationHeader && !cacheAuthorizedRequests) {
-    loggy.info(`Authorized request bypassing cache: ${key}`);
-    await next();
-    return;
-  }
 
   if (cacheEntry && !noCache) {
     loggy.info(`HIT with key: ${key}`);
@@ -45,7 +35,7 @@ const middleware = async (ctx: Context, next: any) => {
     loggy.info(`MISS with key: ${key}`);
 
     if (ctx.body instanceof Stream) {
-      const buf = await streamToBuffer(ctx.body);
+      const buf = await streamToBuffer(ctx.body as Stream);
       const contentEncoding = ctx.response.headers['content-encoding'];
       const decompressed = await decompressBuffer(buf, contentEncoding);
       const responseText = decodeBufferToText(decompressed);
