@@ -1,14 +1,16 @@
-import { createHash } from 'crypto';
-import { Context } from 'koa';
+import { b64encode } from './b64';
+import { hash } from './hash';
 
-export const generateCacheKey = (context: Context) => {
+export const generateCacheKey = (context: Context, alg?: string) => {
   const { url } = context.request;
   const { method } = context.request;
+  const keyPlainText = `${method}:${url}`;
 
-  return `${method}:${url}`;
+  return alg ? hash(keyPlainText, alg) : keyPlainText;
 };
 
-export const generateGraphqlCacheKey = (payload: string) => {
-  const hash = createHash('sha256').update(payload).digest('base64url');
-  return `POST:/graphql:${hash}`;
+export const generateGraphqlCacheKey = (payload: string, alg?: string) => {
+  const b64payload = b64encode(payload);
+  const keyPlainText = `POST:/graphql:${b64payload}`;
+  return alg ? hash(keyPlainText, alg) : keyPlainText;
 };
