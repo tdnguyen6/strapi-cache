@@ -22,7 +22,7 @@ const middleware = async (ctx: Context, next: any) => {
     cacheableRoutes.some((route) => url.startsWith(route)) ||
     (cacheableRoutes.length === 0 && url.startsWith('/api'));
   const authorizationHeader = ctx.request.headers['authorization'];
-  const statusIsCachable = () => (ctx.status >= 200 && ctx.status < 300) || ctx.status == 404;
+  const statusIsCachable = () => ((ctx.status >= 200 && ctx.status < 300) || ctx.status == 404);
   if (authorizationHeader && !cacheAuthorizedRequests) {
     loggy.info(`Authorized request bypassing cache: ${key}`);
     await next();
