@@ -117,6 +117,10 @@ export class RedisCacheProvider implements CacheProvider {
     }
   }
 
+  hashedKey(key: string) {
+    return this.hashedKey ? hash(key, this.hashCacheKey, "binary") : key;
+  }
+
   async reset(): Promise<any | null> {
     if (!this.ready) return null;
 
@@ -128,10 +132,6 @@ export class RedisCacheProvider implements CacheProvider {
       loggy.error(`Redis reset error: ${error}`);
       return null;
     }
-  }
-
-  hashedKey(key: string) {
-    return this.hashedKey ? hash(key, this.hashCacheKey) : key;
   }
 
   async clearByRegexp(regExps: RegExp[]): Promise<void> {
