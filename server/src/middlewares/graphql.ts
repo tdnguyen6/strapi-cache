@@ -4,13 +4,16 @@ import Stream, { Readable } from 'stream';
 import { loggy } from '../utils/log';
 import { CacheService } from '../../src/types/cache.types';
 import { decodeBufferToText, decompressBuffer, streamToBuffer } from '../../src/utils/body';
+import { getCacheEntry, statusIsCachable } from '../utils/cache';
 
 const middleware = async (ctx: any, next: any) => {
   const cacheService = strapi.plugin('strapi-cache').services.service as CacheService;
   const cacheHeaders = strapi.plugin('strapi-cache').config('cacheHeaders') as boolean;
+  const auth = strapi.plugin('strapi-cache').config('auth') as string;
   const cacheAuthorizedRequests = strapi
     .plugin('strapi-cache')
     .config('cacheAuthorizedRequests') as boolean;
+  const authorizationHeader = ctx.request.headers['authorization'];
   const cacheStore = cacheService.getCacheInstance();
   const { url } = ctx.request;
 
@@ -39,11 +42,13 @@ const middleware = async (ctx: any, next: any) => {
     return;
   }
 
-  const key = generateGraphqlCacheKey(ctx);
-  const cacheEntry = await cacheStore.get(key);
+  const key = generateGraphqlCacheKey(ctx, body);
   const cacheControlHeader = ctx.request.headers['cache-control'];
   const noCache = cacheControlHeader && cacheControlHeader.includes('no-cache');
-  const authorizationHeader = ctx.request.headers['authorization'];
+  const routeIsCachable = url.startsWith('/graphql');
+  const initCacheTimeoutInMs = strapi
+    .plugin('strapi-cache')
+    .config('initCacheTimeoutInMs') as number;
 
   if (authorizationHeader && !cacheAuthorizedRequests) {
     loggy.info(`Authorized request bypassing cache: ${key}`);
@@ -51,49 +56,49 @@ const middleware = async (ctx: any, next: any) => {
     return;
   }
 
-  if (cacheEntry && !noCache) {
-    loggy.info(`HIT with key: ${key}`);
-    ctx.status = 200;
-    ctx.body = cacheEntry.body;
-    if (cacheHeaders) {
-      ctx.set(cacheEntry.headers);
-    }
-    return;
-  }
-
-  await next();
-
-  if (
-    ctx.method === 'POST' &&
-    ctx.status >= 200 &&
-    ctx.status < 300 &&
-    url.startsWith('/graphql')
-  ) {
-    loggy.info(`MISS with key: ${key}`);
-    const headers = ctx.request.headers;
-    const authorizationHeader = headers['authorization'];
-    if (authorizationHeader && !cacheAuthorizedRequests) {
-      loggy.info(`Authorized request not caching: ${key}`);
+  if (ctx.method === 'POST' && routeIsCachable && !noCache) {
+    const providerType = strapi.plugin('strapi-cache').config('provider') || 'memory';
+    const cacheEntry = await getCacheEntry(cacheStore, key, initCacheTimeoutInMs);
+    if (cacheEntry) {
+      loggy.info(`HIT with key: ${key}`);
+      ctx.status = 200;
+      ctx.body = cacheEntry.body;
+      ctx.set('X-Cache', `Hit from ${providerType}`)
+      if (cacheHeaders) {
+        ctx.set(cacheEntry.headers);
+      }
       return;
     }
+    loggy.info(`INIT with key: ${key}`);
+    await cacheStore.set(key, { init: true });
+    try {
+      await next();
+    } catch(e) {
+      loggy.info(`ERROR ${e} with key: ${key}`);
+      cacheStore.del(key);
+    }
+    if (statusIsCachable(ctx)) {
+      loggy.info(`MISS with key: ${key}`);
+      ctx.set('X-Cache', `Miss from ${providerType}`)
+      if (ctx.body instanceof Stream) {
+        const buf = await streamToBuffer(ctx.body as Stream);
+        const contentEncoding = ctx.response.headers['content-encoding']; // e.g., gzip, br, deflate
+        const decompressed = await decompressBuffer(buf, contentEncoding);
+        const responseText = decodeBufferToText(decompressed);
 
-    if (ctx.body instanceof Stream) {
-      const buf = await streamToBuffer(ctx.body);
-      const contentEncoding = ctx.response.headers['content-encoding']; // e.g., gzip, br, deflate
-      const decompressed = await decompressBuffer(buf, contentEncoding);
-      const responseText = decodeBufferToText(decompressed);
-
-      const headersToStore = cacheHeaders ? ctx.response.headers : null;
-      await cacheStore.set(key, { body: responseText, headers: headersToStore });
-      ctx.body = buf;
-    } else {
-      const headersToStore = cacheHeaders ? ctx.response.headers : null;
-      await cacheStore.set(key, {
-        body: ctx.body,
-        headers: headersToStore,
-      });
+        const headersToStore = cacheHeaders ? ctx.response.headers : null;
+        await cacheStore.set(key, { body: responseText, headers: headersToStore });
+        ctx.body = buf;
+      } else {
+        const headersToStore = cacheHeaders ? ctx.response.headers : null;
+        await cacheStore.set(key, {
+          body: ctx.body,
+          headers: headersToStore,
+        });
+      }
     }
   }
+  await next();
 };
 
 export default middleware;
