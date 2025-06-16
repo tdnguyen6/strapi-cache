@@ -1,3 +1,4 @@
+import { Context } from 'koa';
 import { b64encode } from './b64';
 import { hash } from './hash';
 
