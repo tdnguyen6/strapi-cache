@@ -21,14 +21,16 @@ export class RedisCacheProvider implements CacheProvider {
     try {
       const redisConfig =
         this.strapi.plugin('strapi-cache').config('redisConfig') || 'redis://localhost:6379';
-      const redisClusterNodes: ClusterNode[] =
-        this.strapi.plugin('strapi-cache').config('redisClusterNodes');
+      const redisClusterNodes: ClusterNode[] = this.strapi
+        .plugin('strapi-cache')
+        .config('redisClusterNodes');
       this.cacheGetTimeoutInMs = Number(
         this.strapi.plugin('strapi-cache').config('cacheGetTimeoutInMs')
       );
       if (redisClusterNodes.length) {
-        const redisClusterOptions: ClusterOptions =
-          this.strapi.plugin('strapi-cache').config('redisClusterOptions');
+        const redisClusterOptions: ClusterOptions = this.strapi
+          .plugin('strapi-cache')
+          .config('redisClusterOptions');
         if (!redisClusterOptions['redisOptions']) {
           redisClusterOptions.redisOptions = redisConfig;
         }
@@ -71,12 +73,15 @@ export class RedisCacheProvider implements CacheProvider {
     try {
       // plugin ttl is ms, ioredis ttl is s, so we convert here
       const ttlInMs = Number(this.strapi.plugin('strapi-cache').config('ttl'));
-      const ttlInS = Number((ttlInMs/1000).toFixed());
-      const initCacheTimeoutInMs = strapi.plugin('strapi-cache').config('initCacheTimeoutInMs') as number;
+      const ttlInS = Number((ttlInMs / 1000).toFixed());
       const serialized = JSON.stringify(val);
 
       if (val.init) {
-        await this.client.set(this.hashedKey(key), serialized, 'EX', initCacheTimeoutInMs);
+        const initCacheTimeoutInMs = strapi
+          .plugin('strapi-cache')
+          .config('initCacheTimeoutInMs') as number;
+        const initCacheTimeoutInS = Number((initCacheTimeoutInMs / 1000).toFixed());
+        await this.client.set(this.hashedKey(key), serialized, 'EX', initCacheTimeoutInS);
         return val;
       }
       if (ttlInS > 0) {
@@ -117,7 +122,7 @@ export class RedisCacheProvider implements CacheProvider {
   }
 
   hashedKey(key: string) {
-    return this.hashCacheKey ? hash(key, this.hashCacheKey, "binary") : key;
+    return this.hashCacheKey ? hash(key, this.hashCacheKey, 'binary') : key;
   }
 
   async reset(): Promise<any | null> {

@@ -51,7 +51,7 @@ const middleware = async (ctx: Context, next: any) => {
     try {
       await next();
     } catch(e) {
-      loggy.info(`ERROR ${e} with key: ${key}`);
+      loggy.error(`${e} with key: ${key}`);
       cacheStore.del(key);
     }
     if (statusIsCachable(ctx)) {
@@ -73,6 +73,8 @@ const middleware = async (ctx: Context, next: any) => {
         });
       }
       ctx.set('X-Cache', `Miss from ${providerType}`)
+    } else {
+      cacheStore.del(key);
     }
     return;
   }

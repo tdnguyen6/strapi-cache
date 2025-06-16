@@ -1,6 +1,7 @@
 import { CacheProvider } from 'src/types/cache.types';
 import { sleepAsync } from './sleep';
 import { withTimeout } from './withTimeout';
+import { loggy } from './log';
 
 async function _getCacheEntry(
   cancelRef: { cancel: boolean },
@@ -24,10 +25,13 @@ export async function getCacheEntry(
   initCacheTimeoutInMs,
   delayMs = 100
 ) {
-  return await withTimeout(
+  try {
+    return await withTimeout(
     (cancelRef) => _getCacheEntry(cancelRef, cacheStore, key, delayMs),
-    initCacheTimeoutInMs
-  );
+    initCacheTimeoutInMs);
+  } catch (e) {
+    loggy.error(e);
+  }
 }
 
 export function statusIsCachable(ctx) {
