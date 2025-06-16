@@ -3,13 +3,17 @@ import { Redis, Cluster, ClusterNode, ClusterOptions } from 'ioredis';
 import { withTimeout } from '../../utils/withTimeout';
 import { CacheProvider } from '../../types/cache.types';
 import { loggy } from '../../utils/log';
+import { hash } from '../../utils/hash';
 
 export class RedisCacheProvider implements CacheProvider {
   private initialized = false;
   private client!: Redis | Cluster;
   private cacheGetTimeoutInMs: number;
+  private hashCacheKey;
 
-  constructor(private strapi: Core.Strapi) { }
+  constructor(private strapi: Core.Strapi) {
+    this.hashCacheKey = strapi.plugin('strapi-cache').config('hashCacheKey');
+  }
 
   init(): void {
     if (this.initialized) {
@@ -54,7 +58,7 @@ export class RedisCacheProvider implements CacheProvider {
   async get(key: string): Promise<any | null> {
     if (!this.ready) return null;
 
-    return withTimeout(() => this.client.get(key), this.cacheGetTimeoutInMs)
+    return withTimeout(() => this.client.get(this.hashedKey(this.hashedKey(key))), this.cacheGetTimeoutInMs)
       .then((data) => (data ? JSON.parse(data) : null))
       .catch((error) => {
         loggy.error(`Redis get error: ${error?.message || error}`);
@@ -93,7 +97,7 @@ export class RedisCacheProvider implements CacheProvider {
 
     try {
       loggy.info(`Redis PURGING KEY: ${key}`);
-      await this.client.del(key);
+      await this.client.del(this.hashedKey(key));
       return true;
     } catch (error) {
       loggy.error(`Redis del error: ${error}`);
@@ -124,6 +128,10 @@ export class RedisCacheProvider implements CacheProvider {
       loggy.error(`Redis reset error: ${error}`);
       return null;
     }
+  }
+
+  hashedKey(key: string) {
+    return this.hashedKey ? hash(key, this.hashCacheKey) : key;
   }
 
   async clearByRegexp(regExps: RegExp[]): Promise<void> {

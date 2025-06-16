@@ -2,10 +2,10 @@ import type { LRUCache } from 'lru-cache';
 
 export interface CacheProvider {
   init(): void;
-  get(key: string): Promise<any | null>;
-  set(key: string, val: any): Promise<any | null>;
-  del(key: string): Promise<any | null>;
-  keys(): Promise<string[] | null>;
+  get(key: string | Buffer): Promise<any | null>;
+  set(key: string | Buffer, val: any): Promise<any | null>;
+  del(key: string | Buffer): Promise<any | null>;
+  keys(): Promise<(string | Buffer)[] | null>;
   reset(): Promise<any | null>;
   readonly ready: boolean;
   clearByRegexp(regExps: RegExp[]): Promise<void>;
