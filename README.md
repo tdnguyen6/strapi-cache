@@ -58,6 +58,8 @@ In your Strapi project, navigate to `config/plugins.js` and add the following co
     cacheAuthorizedRequests: false, // Cache requests with authorization headers (set to true if you want to cache authorized requests)
     cacheGetTimeoutInMs: 1000, // Timeout for getting cached data in milliseconds (default is 1 seconds)
     hashCacheKey: undefined, // whether to hash cached key, input an algorithm support by nodejs crypto
+    initCacheTimeoutInMs: 10000, // Timeout for init cache lock in milliseconds (default is 10 seconds)
+    auth: 'after', // Whether strapi auth run before or after this plugin middleware (default is after)
   },
 },
 ```
