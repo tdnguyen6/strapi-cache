@@ -4,6 +4,8 @@ import Stream, { Readable } from 'stream';
 import { loggy } from '../utils/log';
 import { CacheService } from '../../src/types/cache.types';
 import { decodeBufferToText, decompressBuffer, streamToBuffer } from '../../src/utils/body';
+import { withTimeout } from 'src/utils/withTimeout';
+import { waitCacheInit } from 'src/utils/waitCacheInit';
 
 const middleware = async (ctx: any, next: any) => {
   const cacheService = strapi.plugin('strapi-cache').services.service as CacheService;
@@ -41,25 +43,26 @@ const middleware = async (ctx: any, next: any) => {
   const cacheEntry = await cacheStore.get(key);
   const cacheControlHeader = ctx.request.headers['cache-control'];
   const noCache = cacheControlHeader && cacheControlHeader.includes('no-cache');
+  const routeIsCachable = url.startsWith('/graphql');
+  const statusIsCachable = () => ((ctx.status >= 200 && ctx.status < 300) || ctx.status === 404);
+  const initCacheTimeoutInMs = strapi.plugin('strapi-cache').config('initCacheTimeoutInMs') as number;
 
-  if (cacheEntry && !noCache) {
-    loggy.info(`HIT with key: ${key}`);
-    ctx.status = 200;
-    ctx.body = cacheEntry.body;
-    if (cacheHeaders) {
-      ctx.set(cacheEntry.headers);
+
+  if (ctx.method === 'POST' && routeIsCachable && !noCache) {
+      let cacheEntry = await withTimeout(cancelRef => waitCacheInit(cancelRef, cacheStore, key), initCacheTimeoutInMs);
+    if (cacheEntry) {
+      loggy.info(`HIT with key: ${key}`);
+      ctx.status = 200;
+      ctx.body = cacheEntry.body;
+      if (cacheHeaders) {
+        ctx.set(cacheEntry.headers);
+      }
+      return;
     }
-    return;
   }
-
   await next();
 
-  if (
-    ctx.method === 'POST' &&
-    ctx.status >= 200 &&
-    ctx.status < 300 &&
-    url.startsWith('/graphql')
-  ) {
+  if (ctx.method === 'POST' && routeIsCachable && statusIsCachable()) {
     loggy.info(`MISS with key: ${key}`);
 
     if (ctx.body instanceof Stream) {
@@ -78,6 +81,8 @@ const middleware = async (ctx: any, next: any) => {
         headers: headersToStore,
       });
     }
+  } else {
+    cacheStore.del(key);
   }
 };
 

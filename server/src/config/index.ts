@@ -15,6 +15,7 @@ export default {
     cacheHeaders: true,
     cacheGetTimeoutInMs: 1000,
     hashCacheKey: undefined,
+    initCacheTimeoutInMs: 10000,
   }),
   validator: (config) => {
     if (typeof config.debug !== 'boolean') {
