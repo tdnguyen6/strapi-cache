@@ -11,9 +11,7 @@ export class RedisCacheProvider implements CacheProvider {
   private cacheGetTimeoutInMs: number;
   private hashCacheKey;
 
-  constructor(private strapi: Core.Strapi) {
-    this.hashCacheKey = strapi.plugin('strapi-cache').config('hashCacheKey');
-  }
+  constructor(private strapi: Core.Strapi) {}
 
   init(): void {
     if (this.initialized) {
@@ -38,6 +36,7 @@ export class RedisCacheProvider implements CacheProvider {
       } else {
         this.client = new Redis(redisConfig);
       }
+      this.hashCacheKey = strapi.plugin('strapi-cache').config('hashCacheKey');
       this.initialized = true;
 
       loggy.info('Redis provider initialized');
@@ -58,7 +57,7 @@ export class RedisCacheProvider implements CacheProvider {
   async get(key: string): Promise<any | null> {
     if (!this.ready) return null;
 
-    return withTimeout(() => this.client.get(this.hashedKey(this.hashedKey(key))), this.cacheGetTimeoutInMs)
+    return withTimeout(() => this.client.get(this.hashedKey(key)), this.cacheGetTimeoutInMs)
       .then((data) => (data ? JSON.parse(data) : null))
       .catch((error) => {
         loggy.error(`Redis get error: ${error?.message || error}`);
@@ -77,13 +76,13 @@ export class RedisCacheProvider implements CacheProvider {
       const serialized = JSON.stringify(val);
 
       if (val.init) {
-        await this.client.set(key, serialized, 'EX', initCacheTimeoutInMs);
+        await this.client.set(this.hashedKey(key), serialized, 'EX', initCacheTimeoutInMs);
         return val;
       }
       if (ttlInS > 0) {
-        await this.client.set(key, serialized, 'EX', ttlInS);
+        await this.client.set(this.hashedKey(key), serialized, 'EX', ttlInS);
       } else {
-        await this.client.set(key, serialized);
+        await this.client.set(this.hashedKey(key), serialized);
       }
       return val;
     } catch (error) {
@@ -118,7 +117,7 @@ export class RedisCacheProvider implements CacheProvider {
   }
 
   hashedKey(key: string) {
-    return this.hashedKey ? hash(key, this.hashCacheKey, "binary") : key;
+    return this.hashCacheKey ? hash(key, this.hashCacheKey, "binary") : key;
   }
 
   async reset(): Promise<any | null> {

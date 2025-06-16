@@ -63,10 +63,10 @@ const middleware = async (ctx: any, next: any) => {
       loggy.info(`HIT with key: ${key}`);
       ctx.status = 200;
       ctx.body = cacheEntry.body;
-      ctx.set('X-Cache', `Hit from ${providerType}`)
       if (cacheHeaders) {
         ctx.set(cacheEntry.headers);
       }
+      ctx.set('X-Cache', `Hit from ${providerType}`)
       return;
     }
     loggy.info(`INIT with key: ${key}`);
@@ -79,7 +79,6 @@ const middleware = async (ctx: any, next: any) => {
     }
     if (statusIsCachable(ctx)) {
       loggy.info(`MISS with key: ${key}`);
-      ctx.set('X-Cache', `Miss from ${providerType}`)
       if (ctx.body instanceof Stream) {
         const buf = await streamToBuffer(ctx.body as Stream);
         const contentEncoding = ctx.response.headers['content-encoding']; // e.g., gzip, br, deflate
@@ -96,6 +95,7 @@ const middleware = async (ctx: any, next: any) => {
           headers: headersToStore,
         });
       }
+      ctx.set('X-Cache', `Miss from ${providerType}`)
     }
     return;
   }

@@ -11,16 +11,15 @@ export class InMemoryCacheProvider implements CacheProvider {
   private cacheGetTimeoutInMs: number;
   private hashCacheKey;
 
-  constructor(private strapi: Core.Strapi) {
-    this.hashCacheKey = strapi.plugin('strapi-cache').config('hashCacheKey');
-  }
+  constructor(private strapi: Core.Strapi) {}
+
 
   init(): void {
     if (this.initialized) {
       loggy.error('Provider already initialized');
       return;
     }
-
+    this.hashCacheKey = strapi.plugin('strapi-cache').config('hashCacheKey');
     this.initialized = true;
 
     const max = Number(this.strapi.plugin('strapi-cache').config('max'));
@@ -70,7 +69,7 @@ export class InMemoryCacheProvider implements CacheProvider {
     if (!this.ready) return null;
 
     try {
-      return this.provider.set(key, val);
+      return this.provider.set(this.hashedKey(key), val);
     } catch (error) {
       loggy.error(`Error during set: ${error}`);
       return null;
@@ -101,7 +100,7 @@ export class InMemoryCacheProvider implements CacheProvider {
   }
 
   hashedKey(key: string) {
-    return this.hashedKey ? hash(key, this.hashCacheKey, "base64") : key;
+    return this.hashCacheKey ? hash(key, this.hashCacheKey, "base64") : key;
   }
 
   async reset(): Promise<any | null> {
