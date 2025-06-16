@@ -97,6 +97,7 @@ const middleware = async (ctx: any, next: any) => {
         });
       }
     }
+    return;
   }
   await next();
 };

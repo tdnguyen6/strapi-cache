@@ -74,6 +74,7 @@ const middleware = async (ctx: Context, next: any) => {
         });
       }
     }
+    return;
   }
   await next();
 };
