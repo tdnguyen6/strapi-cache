@@ -11,7 +11,8 @@ const middleware = async (ctx: Context, next: any) => {
   const cacheHeaders = strapi.plugin('strapi-cache').config('cacheHeaders') as boolean;
   const cacheStore = cacheService.getCacheInstance();
   const { url } = ctx.request;
-  const key = generateCacheKey(ctx);
+  const hashCacheKey = strapi.plugin('strapi-cache').config('hashCacheKey');
+  const key = generateCacheKey(ctx, hashCacheKey);
   const cacheEntry = await cacheStore.get(key);
   const cacheControlHeader = ctx.request.headers['cache-control'];
   const noCache = cacheControlHeader && cacheControlHeader.includes('no-cache');
