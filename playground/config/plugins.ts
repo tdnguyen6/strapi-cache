@@ -14,7 +14,6 @@ export default ({ env }) => ({
       redisClusterNodes: [], // If provided any cluster node (this list is not empty), initialize ioredis redis cluster client. Each object must have keys 'host' and 'port'. See https://ioredis.readthedocs.io/en/stable/README for references
       redisClusterOptions: {}, // Options for ioredis redis cluster client. redisOptions key is taken from redisConfig parameter above if not set here. See https://ioredis.readthedocs.io/en/stable/README for references
       cacheHeaders: true,
-      cacheAuthorizedRequests: false,
     },
   },
 });
@@ -36,7 +35,6 @@ export default ({ env }) => ({
 //       redisClusterNodes: [], // If provided any cluster node (this list is not empty), initialize ioredis redis cluster client. Each object must have keys 'host' and 'port'. See https://ioredis.readthedocs.io/en/stable/README for references
 //       redisClusterOptions: {}, // Options for ioredis redis cluster client. redisOptions key is taken from redisConfig parameter above if not set here. See https://ioredis.readthedocs.io/en/stable/README for references
 //       cacheHeaders: true,
-//       cacheAuthorizedRequests: false,
 //     },
 //   },
 // });
@@ -67,7 +65,6 @@ export default ({ env }) => ({
 //         scaleReads: "all"
 //       }, // Options for ioredis redis cluster client. redisOptions key is taken from redisConfig parameter above if not set here. See https://ioredis.readthedocs.io/en/stable/README for references
 //       cacheHeaders: true,
-//       cacheAuthorizedRequests: false,
 //     },
 //   },
 // });
