@@ -39,8 +39,7 @@ const middleware = async (ctx: any, next: any) => {
     return;
   }
 
-  const hashCacheKey = strapi.plugin('strapi-cache').config('hashCacheKey');
-  const key = generateGraphqlCacheKey(ctx, hashCacheKey);
+  const key = generateGraphqlCacheKey(ctx);
   const cacheEntry = await cacheStore.get(key);
   const cacheControlHeader = ctx.request.headers['cache-control'];
   const noCache = cacheControlHeader && cacheControlHeader.includes('no-cache');
