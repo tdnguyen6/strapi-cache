@@ -29,12 +29,7 @@ const middleware = async (ctx: Context, next: any) => {
     (cacheableRoutes.length === 0 && path.startsWith('/api'));
 
   if (method === 'GET' && routeIsCachable && !noCache) {
-    const key = generateCacheKey(
-      method,
-      path,
-      query,
-      authorizationHeader,
-    );
+    const key = generateCacheKey(method, path, query, authorizationHeader);
     const cacheService = strapi.plugin('strapi-cache').services.service as CacheService;
     const cacheStore = cacheService.getCacheInstance();
     const providerType = strapi.plugin('strapi-cache').config('provider') || 'memory';

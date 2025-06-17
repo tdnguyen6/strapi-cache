@@ -25,7 +25,7 @@ const _generateCacheKey = (
   return `${prefix}:${hashedSuffix}`;
 };
 
-const _generateCacheKeyWithAuth = (
+const generateCacheKeyWithAuth = (
   method: string,
   path: string,
   payload: {} | undefined,
@@ -45,8 +45,7 @@ export const generateCacheKey = (
   payload: {} | undefined,
   authorizationHeader: string
 ) => {
-  const auth = strapi.plugin('strapi-cache').config('auth') as string;
-  return auth === 'after' && authorizationHeader
-    ? _generateCacheKeyWithAuth(method, path, payload, authorizationHeader)
+  return authorizationHeader
+    ? generateCacheKeyWithAuth(method, path, payload, authorizationHeader)
     : _generateCacheKey(method, path, payload);
 };

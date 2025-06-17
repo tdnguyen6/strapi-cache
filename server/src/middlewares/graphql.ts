@@ -6,11 +6,11 @@ import { CacheService } from '../../src/types/cache.types';
 import { decodeBufferToText, decompressBuffer, streamToBuffer } from '../../src/utils/body';
 import { getCacheEntry, statusIsCachable } from '../utils/cache';
 import { qsparse } from '../utils/qsparse';
-import { parse } from 'graphql';
+import { DefinitionNode, OperationDefinitionNode, parse } from 'graphql';
 
 const middleware = async (ctx: any, next: any) => {
   const { method, url, headers } = ctx.request;
-  const { path, query } = qsparse(url);
+  const { path } = qsparse(url);
 
   const cacheAuthorizedRequests = strapi
     .plugin('strapi-cache')
@@ -52,17 +52,13 @@ const middleware = async (ctx: any, next: any) => {
     }
 
     const bodyObj = JSON.parse(body);
-    if (bodyObj.mutation || !bodyObj.query) {
-      loggy.info('Skipping cache for mutation/non-query GraphQL requests');
+    const query = parse(bodyObj.query, { noLocation: true });
+    if (query.definitions.some((d: OperationDefinitionNode) => d.operation !== 'query')) {
+      loggy.info('Skipping cache for non-query GraphQL operations');
       await next();
       return;
     }
-    const key = generateCacheKey(
-      method,
-      path,
-      parse(bodyObj.query, { noLocation: true }),
-      authorizationHeader,
-    );
+    const key = generateCacheKey(method, path, query, authorizationHeader);
     const cacheService = strapi.plugin('strapi-cache').services.service as CacheService;
     const cacheStore = cacheService.getCacheInstance();
     const providerType = strapi.plugin('strapi-cache').config('provider') || 'memory';
@@ -103,7 +99,6 @@ const middleware = async (ctx: any, next: any) => {
         }
         ctx.set('X-Cache', `Miss from ${providerType}`);
       } else {
-        cacheStore.del(key);
         throw new Error('NOT_CACHABLE');
       }
     } catch (e) {
