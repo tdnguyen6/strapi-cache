@@ -28,6 +28,7 @@
     "dist"
   ],
   "scripts": {
+    "prepare": "strapi-plugin build",
     "build": "strapi-plugin build",
     "watch": "strapi-plugin watch",
     "watch:link": "strapi-plugin watch:link",
@@ -40,6 +41,7 @@
     "@strapi/design-system": "^2.0.0-rc.23",
     "@strapi/icons": "^2.0.0-rc.23",
     "ioredis": "^5.6.1",
+    "jsonwebtoken": "^9.0.2",
     "lru-cache": "^11.1.0",
     "raw-body": "^3.0.0",
     "react-intl": "^7.1.10"
