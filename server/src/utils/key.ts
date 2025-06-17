@@ -1,7 +1,6 @@
 import * as jwt from 'jsonwebtoken';
 import { hash } from './hash';
 import stringify from 'fast-json-stable-stringify';
-import { parse } from 'graphql';
 
 const _generateCacheKey = (
   method: string,
