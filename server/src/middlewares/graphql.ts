@@ -5,6 +5,9 @@ import { loggy } from '../utils/log';
 import { CacheService } from '../../src/types/cache.types';
 import { decodeBufferToText, decompressBuffer, streamToBuffer } from '../../src/utils/body';
 import { getCacheEntry, statusIsCachable } from '../utils/cache';
+import stringify from 'fast-json-stable-stringify';
+import { parse } from 'graphql';
+import { hash } from '../utils/hash';
 
 const middleware = async (ctx: any, next: any) => {
   const cacheService = strapi.plugin('strapi-cache').services.service as CacheService;
@@ -33,6 +36,13 @@ const middleware = async (ctx: any, next: any) => {
   ctx.req = clonedReq;
   ctx.request.req = clonedReq;
 
+  const bodyObj = JSON.parse(body);
+  bodyObj.query = parse(bodyObj.query, {
+    noLocation: true,
+  });
+
+  loggy.info(hash(stringify(bodyObj), "sha1"));
+
   const isIntrospectionQuery = body.includes('IntrospectionQuery');
   if (isIntrospectionQuery) {
     loggy.info('Skipping cache for introspection query');
@@ -40,7 +50,7 @@ const middleware = async (ctx: any, next: any) => {
     return;
   }
 
-  const key = generateGraphqlCacheKey(ctx, body);
+  const key = generateGraphqlCacheKey(ctx);
   const cacheControlHeader = ctx.request.headers['cache-control'];
   const noCache = cacheControlHeader && cacheControlHeader.includes('no-cache');
   const routeIsCachable = url.startsWith('/graphql');

@@ -27,7 +27,8 @@ export const generateCacheKey = (context: Context) => {
   return `${keyPrefix}`;
 };
 
-export const generateGraphqlCacheKey = (context: Context, payload: string) => {
+export const generateGraphqlCacheKey = (context: Context) => {
+  
   const b64payload = b64encode(payload);
   const auth = strapi.plugin('strapi-cache').config('auth') as string;
   if (auth === 'before') {
