@@ -1,13 +1,15 @@
 import { Context } from 'koa';
 import { b64encode } from './b64';
 import * as jwt from 'jsonwebtoken';
+import { hash } from './hash';
 
 export const generateCacheKey = (context: Context) => {
-  const { url } = context.request;
-  const { method } = context.request;
+  const { path, method, query } = context.request;
+  const queryString = JSON.stringify(query);
   const auth = strapi.plugin('strapi-cache').config('auth') as string;
+  const keyPrefix = `${method}:${path}`;
   if (auth === 'before') {
-    return `${method}:${url}`;
+    return keyPrefix;
   }
   const cacheAuthorizedRequests = strapi
       .plugin('strapi-cache')
@@ -17,11 +19,12 @@ export const generateCacheKey = (context: Context) => {
       const token = authorizationHeader.replace(/^Bearer /, "");
       const decodedJwt = jwt.decode(token);
       if (decodedJwt) {
-        return `${method}:${url}:id-${decodedJwt['id']}`;
+        return `${keyPrefix}:id-${decodedJwt['id']}`;
       }
-      return `${method}:${url}:${token}`;
+      const alg = strapi.plugin('strapi-cache').config('hashCacheKey') as string | undefined;
+      return `${keyPrefix}:${hash(token, alg)}`;
   }
-  return `${method}:${url}`;
+  return `${keyPrefix}`;
 };
 
 export const generateGraphqlCacheKey = (context: Context, payload: string) => {
@@ -40,6 +43,7 @@ export const generateGraphqlCacheKey = (context: Context, payload: string) => {
       if (decodedJwt) {
         return `POST:/graphql:${b64payload}:id-${decodedJwt['id']}`;
       }
+      const alg = strapi.plugin('strapi-cache').config('hashCacheKey') as string | undefined;
       return `POST:/graphql:${b64payload}:${token}`;
   }
   return `POST:/graphql:${b64payload}`;

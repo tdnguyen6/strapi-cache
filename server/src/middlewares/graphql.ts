@@ -9,18 +9,16 @@ import { getCacheEntry, statusIsCachable } from '../utils/cache';
 const middleware = async (ctx: any, next: any) => {
   const cacheService = strapi.plugin('strapi-cache').services.service as CacheService;
   const cacheHeaders = strapi.plugin('strapi-cache').config('cacheHeaders') as boolean;
-  const auth = strapi.plugin('strapi-cache').config('auth') as string;
   const cacheAuthorizedRequests = strapi
     .plugin('strapi-cache')
     .config('cacheAuthorizedRequests') as boolean;
-  const authorizationHeader = ctx.request.headers['authorization'];
+  const authorizationHeader = ctx.request.headers.authorization;
   const cacheStore = cacheService.getCacheInstance();
   const { url } = ctx.request;
 
   const originalReq = ctx.req;
   const bodyBuffer = await rawBody(originalReq);
   const body = bodyBuffer.toString();
-
   const clonedReq = new Readable();
   clonedReq.push(bodyBuffer);
   clonedReq.push(null);
@@ -75,17 +73,18 @@ const middleware = async (ctx: any, next: any) => {
       await next();
       if (statusIsCachable(ctx)) {
         loggy.info(`MISS with key: ${key}`);
+        const headersToStore = cacheHeaders ? ctx.response.headers : null;
+        if (authorizationHeader) {
+          delete headersToStore.authorization;
+        }
         if (ctx.body instanceof Stream) {
           const buf = await streamToBuffer(ctx.body as Stream);
           const contentEncoding = ctx.response.headers['content-encoding']; // e.g., gzip, br, deflate
           const decompressed = await decompressBuffer(buf, contentEncoding);
           const responseText = decodeBufferToText(decompressed);
-
-          const headersToStore = cacheHeaders ? ctx.response.headers : null;
           await cacheStore.set(key, { body: responseText, headers: headersToStore });
           ctx.body = buf;
         } else {
-          const headersToStore = cacheHeaders ? ctx.response.headers : null;
           await cacheStore.set(key, {
             body: ctx.body,
             headers: headersToStore,
