@@ -3,15 +3,13 @@ import { Redis, Cluster, ClusterNode, ClusterOptions } from 'ioredis';
 import { withTimeout } from '../../utils/withTimeout';
 import { CacheProvider } from '../../types/cache.types';
 import { loggy } from '../../utils/log';
-import { hash } from '../../utils/hash';
 
 export class RedisCacheProvider implements CacheProvider {
   private initialized = false;
   private client!: Redis | Cluster;
   private cacheGetTimeoutInMs: number;
-  private hashCacheKey;
 
-  constructor(private strapi: Core.Strapi) {}
+  constructor(private strapi: Core.Strapi) { }
 
   init(): void {
     if (this.initialized) {
@@ -21,16 +19,14 @@ export class RedisCacheProvider implements CacheProvider {
     try {
       const redisConfig =
         this.strapi.plugin('strapi-cache').config('redisConfig') || 'redis://localhost:6379';
-      const redisClusterNodes: ClusterNode[] = this.strapi
-        .plugin('strapi-cache')
-        .config('redisClusterNodes');
+      const redisClusterNodes: ClusterNode[] =
+        this.strapi.plugin('strapi-cache').config('redisClusterNodes');
       this.cacheGetTimeoutInMs = Number(
         this.strapi.plugin('strapi-cache').config('cacheGetTimeoutInMs')
       );
       if (redisClusterNodes.length) {
-        const redisClusterOptions: ClusterOptions = this.strapi
-          .plugin('strapi-cache')
-          .config('redisClusterOptions');
+        const redisClusterOptions: ClusterOptions =
+          this.strapi.plugin('strapi-cache').config('redisClusterOptions');
         if (!redisClusterOptions['redisOptions']) {
           redisClusterOptions.redisOptions = redisConfig;
         }
@@ -38,7 +34,6 @@ export class RedisCacheProvider implements CacheProvider {
       } else {
         this.client = new Redis(redisConfig);
       }
-      this.hashCacheKey = strapi.plugin('strapi-cache').config('hashCacheKey');
       this.initialized = true;
 
       loggy.info('Redis provider initialized');
@@ -59,7 +54,7 @@ export class RedisCacheProvider implements CacheProvider {
   async get(key: string): Promise<any | null> {
     if (!this.ready) return null;
 
-    return withTimeout(() => this.client.get(this.hashedKey(key)), this.cacheGetTimeoutInMs)
+    return withTimeout(() => this.client.get(key), this.cacheGetTimeoutInMs)
       .then((data) => (data ? JSON.parse(data) : null))
       .catch((error) => {
         loggy.error(`Redis get error: ${error?.message || error}`);
@@ -73,21 +68,12 @@ export class RedisCacheProvider implements CacheProvider {
     try {
       // plugin ttl is ms, ioredis ttl is s, so we convert here
       const ttlInMs = Number(this.strapi.plugin('strapi-cache').config('ttl'));
-      const ttlInS = Number((ttlInMs / 1000).toFixed());
+      const ttlInS = Number((ttlInMs/1000).toFixed());
       const serialized = JSON.stringify(val);
-
-      if (val.init) {
-        const initCacheTimeoutInMs = strapi
-          .plugin('strapi-cache')
-          .config('initCacheTimeoutInMs') as number;
-        const initCacheTimeoutInS = Number((initCacheTimeoutInMs / 1000).toFixed());
-        await this.client.set(this.hashedKey(key), serialized, 'EX', initCacheTimeoutInS);
-        return val;
-      }
       if (ttlInS > 0) {
-        await this.client.set(this.hashedKey(key), serialized, 'EX', ttlInS);
+        await this.client.set(key, serialized, 'EX', ttlInS);
       } else {
-        await this.client.set(this.hashedKey(key), serialized);
+        await this.client.set(key, serialized);
       }
       return val;
     } catch (error) {
@@ -101,7 +87,7 @@ export class RedisCacheProvider implements CacheProvider {
 
     try {
       loggy.info(`Redis PURGING KEY: ${key}`);
-      await this.client.del(this.hashedKey(key));
+      await this.client.del(key);
       return true;
     } catch (error) {
       loggy.error(`Redis del error: ${error}`);
@@ -119,10 +105,6 @@ export class RedisCacheProvider implements CacheProvider {
       loggy.error(`Redis keys error: ${error}`);
       return null;
     }
-  }
-
-  hashedKey(key: string) {
-    return this.hashCacheKey ? hash(key, this.hashCacheKey, 'binary') : key;
   }
 
   async reset(): Promise<any | null> {
