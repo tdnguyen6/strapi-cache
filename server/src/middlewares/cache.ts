@@ -50,30 +50,34 @@ const middleware = async (ctx: Context, next: any) => {
     await cacheStore.set(key, { init: true });
     try {
       await next();
-    } catch(e) {
-      loggy.error(`${e} with key: ${key}`);
-      cacheStore.del(key);
-    }
-    if (statusIsCachable(ctx)) {
-      loggy.info(`MISS with key: ${key}`);
-      if (ctx.body instanceof Stream) {
-        const buf = await streamToBuffer(ctx.body as Stream);
-        const contentEncoding = ctx.response.headers['content-encoding']; // e.g., gzip, br, deflate
-        const decompressed = await decompressBuffer(buf, contentEncoding);
-        const responseText = decodeBufferToText(decompressed);
+      if (statusIsCachable(ctx)) {
+        loggy.info(`MISS with key: ${key}`);
+        if (ctx.body instanceof Stream) {
+          const buf = await streamToBuffer(ctx.body as Stream);
+          const contentEncoding = ctx.response.headers['content-encoding']; // e.g., gzip, br, deflate
+          const decompressed = await decompressBuffer(buf, contentEncoding);
+          const responseText = decodeBufferToText(decompressed);
 
-        const headersToStore = cacheHeaders ? ctx.response.headers : null;
-        await cacheStore.set(key, { body: responseText, headers: headersToStore });
-        ctx.body = buf;
+          const headersToStore = cacheHeaders ? ctx.response.headers : null;
+          await cacheStore.set(key, { body: responseText, headers: headersToStore });
+          ctx.body = buf;
+        } else {
+          const headersToStore = cacheHeaders ? ctx.response.headers : null;
+          await cacheStore.set(key, {
+            body: ctx.body,
+            headers: headersToStore,
+          });
+        }
+        ctx.set('X-Cache', `Miss from ${providerType}`)
       } else {
-        const headersToStore = cacheHeaders ? ctx.response.headers : null;
-        await cacheStore.set(key, {
-          body: ctx.body,
-          headers: headersToStore,
-        });
+        throw new Error("NOT_CACHABLE")
       }
-      ctx.set('X-Cache', `Miss from ${providerType}`)
-    } else {
+    } catch(e) {
+      if (e.message === "NOT_CACHABLE") {
+        loggy.info(`${e.message} with key: ${key}`);
+      } else {
+        loggy.error(`${e} with key: ${key}`);
+      }
       cacheStore.del(key);
     }
     return;
