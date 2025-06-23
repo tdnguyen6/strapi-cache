@@ -47,8 +47,16 @@ const middleware = async (ctx: Context, next: any) => {
     }
     loggy.info(`INIT with key: ${key}`);
     await cacheStore.set(key, { init: true });
+
     try {
       await next();
+    }
+    catch(e) {
+      cacheStore.del(key);
+      throw e;
+    }
+
+    try {
       if (statusIsCachable(ctx)) {
         loggy.info(`MISS with key: ${key}`);
         const headersToStore = cacheHeaders ? ctx.response.headers : null;
@@ -73,12 +81,12 @@ const middleware = async (ctx: Context, next: any) => {
         throw new Error('NOT_CACHABLE');
       }
     } catch (e) {
+      cacheStore.del(key);
       if (e.message === 'NOT_CACHABLE') {
         loggy.info(`${e.message} with key: ${key}`);
       } else {
         loggy.error(`${e.stack} with key: ${key}`);
       }
-      cacheStore.del(key);
     }
     return;
   }
