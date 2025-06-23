@@ -52,7 +52,7 @@ const middleware = async (ctx: Context, next: any) => {
       if (statusIsCachable(ctx)) {
         loggy.info(`MISS with key: ${key}`);
         const headersToStore = cacheHeaders ? ctx.response.headers : null;
-        if (authorizationHeader) {
+        if (authorizationHeader && headersToStore && headersToStore.authorization) {
           delete headersToStore.authorization;
         }
         if (ctx.body instanceof Stream) {
@@ -76,7 +76,7 @@ const middleware = async (ctx: Context, next: any) => {
       if (e.message === 'NOT_CACHABLE') {
         loggy.info(`${e.message} with key: ${key}`);
       } else {
-        loggy.error(`${e} with key: ${key}`);
+        loggy.error(`${e.stack} with key: ${key}`);
       }
       cacheStore.del(key);
     }
