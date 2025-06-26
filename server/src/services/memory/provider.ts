@@ -3,23 +3,20 @@ import { LRUCache } from 'lru-cache';
 import { withTimeout } from '../../utils/withTimeout';
 import { CacheProvider, CacheService } from '../../types/cache.types';
 import { loggy } from '../../utils/log';
-import { hash } from '../../utils/hash';
 
 export class InMemoryCacheProvider implements CacheProvider {
   private initialized = false;
   private provider!: LRUCache<string, any>;
   private cacheGetTimeoutInMs: number;
-  private hashCacheKey;
 
   constructor(private strapi: Core.Strapi) {}
-
 
   init(): void {
     if (this.initialized) {
       loggy.error('Provider already initialized');
       return;
     }
-    this.hashCacheKey = strapi.plugin('strapi-cache').config('hashCacheKey');
+
     this.initialized = true;
 
     const max = Number(this.strapi.plugin('strapi-cache').config('max'));
@@ -56,7 +53,7 @@ export class InMemoryCacheProvider implements CacheProvider {
     return withTimeout(
       () =>
         new Promise((resolve) => {
-          resolve(this.provider.get(this.hashedKey(key)));
+          resolve(this.provider.get(key));
         }),
       this.cacheGetTimeoutInMs
     ).catch((error) => {
@@ -69,7 +66,7 @@ export class InMemoryCacheProvider implements CacheProvider {
     if (!this.ready) return null;
 
     try {
-      return this.provider.set(this.hashedKey(key), val);
+      return this.provider.set(key, val);
     } catch (error) {
       loggy.error(`Error during set: ${error}`);
       return null;
@@ -81,7 +78,7 @@ export class InMemoryCacheProvider implements CacheProvider {
 
     try {
       loggy.info(`PURGING KEY: ${key}`);
-      return this.provider.delete(this.hashedKey(key));
+      return this.provider.delete(key);
     } catch (error) {
       loggy.error(`Error during delete: ${error}`);
       return null;
@@ -97,10 +94,6 @@ export class InMemoryCacheProvider implements CacheProvider {
       loggy.error(`Error fetching keys: ${error}`);
       return null;
     }
-  }
-
-  hashedKey(key: string) {
-    return this.hashCacheKey ? hash(key, this.hashCacheKey, "base64") : key;
   }
 
   async reset(): Promise<any | null> {
