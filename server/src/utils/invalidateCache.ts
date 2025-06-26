@@ -19,7 +19,7 @@ export async function invalidateCache(event: any, cacheStore: CacheProvider, str
         ? contentType.info.singularName
         : contentType.info.pluralName;
     const apiPath = `/api/${pluralName}`;
-    const regex = new RegExp(`^.*:${apiPath}(/.*)?(\\?.*)?$`);
+    const regex = new RegExp(`^.*:${apiPath}(/.*)?(\\?.*)?(:.*)?$`);
 
     await cacheStore.clearByRegexp([regex]);
     loggy.info(`Invalidated cache for ${apiPath}`);
