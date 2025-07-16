@@ -3,13 +3,17 @@ import { LRUCache } from 'lru-cache';
 import { withTimeout } from '../../utils/withTimeout';
 import { CacheProvider, CacheService } from '../../types/cache.types';
 import { loggy } from '../../utils/log';
+import { hash } from '../../utils/hash';
 
 export class InMemoryCacheProvider implements CacheProvider {
   private initialized = false;
   private provider!: LRUCache<string, any>;
   private cacheGetTimeoutInMs: number;
+  private hashCacheKey;
 
-  constructor(private strapi: Core.Strapi) {}
+  constructor(private strapi: Core.Strapi) {
+    this.hashCacheKey = strapi.plugin('strapi-cache').config('hashCacheKey');
+  }
 
   init(): void {
     if (this.initialized) {
@@ -53,7 +57,7 @@ export class InMemoryCacheProvider implements CacheProvider {
     return withTimeout(
       () =>
         new Promise((resolve) => {
-          resolve(this.provider.get(key));
+          resolve(this.provider.get(this.hashedKey(key)));
         }),
       this.cacheGetTimeoutInMs
     ).catch((error) => {
@@ -78,7 +82,7 @@ export class InMemoryCacheProvider implements CacheProvider {
 
     try {
       loggy.info(`PURGING KEY: ${key}`);
-      return this.provider.delete(key);
+      return this.provider.delete(this.hashedKey(key));
     } catch (error) {
       loggy.error(`Error during delete: ${error}`);
       return null;
@@ -94,6 +98,10 @@ export class InMemoryCacheProvider implements CacheProvider {
       loggy.error(`Error fetching keys: ${error}`);
       return null;
     }
+  }
+
+  hashedKey(key: string) {
+    return this.hashedKey ? hash(key, this.hashCacheKey, "base64") : key;
   }
 
   async reset(): Promise<any | null> {

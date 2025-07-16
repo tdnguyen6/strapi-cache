@@ -1,3 +1,5 @@
+import * as crypto from 'crypto';
+
 export default {
   default: ({ env }) => ({
     debug: false,
@@ -13,6 +15,7 @@ export default {
     cacheHeaders: true,
     cacheAuthorizedRequests: false,
     cacheGetTimeoutInMs: 1000,
+    hashCacheKey: undefined,
   }),
   validator: (config) => {
     if (typeof config.debug !== 'boolean') {
@@ -64,6 +67,15 @@ export default {
     }
     if (typeof config.cacheGetTimeoutInMs !== 'number') {
       throw new Error(`Invalid config: cacheGetTimeoutInMs must be a number`);
+    }
+    if (config.hashCacheKey) {
+      if (typeof config.hashCacheKey !== 'string') {
+        throw new Error(`Invalid config: hashCacheKey must be a string if defined`);
+      }
+      const algList = crypto.getHashes();
+      if (!algList.includes(config.hashCacheKey)) {
+        throw new Error (`NotImplementedError: ${config.hashCacheKey} is not implemented by nodejs crypto`);
+      }
     }
   },
 };

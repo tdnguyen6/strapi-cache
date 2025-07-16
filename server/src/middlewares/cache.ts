@@ -45,7 +45,7 @@ const middleware = async (ctx: Context, next: any) => {
     loggy.info(`MISS with key: ${key}`);
 
     if (ctx.body instanceof Stream) {
-      const buf = await streamToBuffer(ctx.body);
+      const buf = await streamToBuffer(ctx.body as Stream);
       const contentEncoding = ctx.response.headers['content-encoding'];
       const decompressed = await decompressBuffer(buf, contentEncoding);
       const responseText = decodeBufferToText(decompressed);
