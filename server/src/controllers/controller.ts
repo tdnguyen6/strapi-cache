@@ -23,15 +23,15 @@ const controller = ({ strapi }: { strapi: Core.Strapi }) => ({
     try {
       const { key } = ctx.params;
       const service = strapi.plugin('strapi-cache').service('service') as CacheService;
-      const apiPath = `/api/${key}`;
+      const apiPath = `/api(/.*)?${key}`;
       const regex = new RegExp(`^.*:${apiPath}(/.*)?(\\?.*)?(:.*)?$`);
 
       await service.getCacheInstance().clearByRegexp([regex]);
 
       ctx.body = {
-        message: `Cache purged successfully for key: ${apiPath}`,
+        message: `Cache purged successfully for key: ${key}`,
       };
-      loggy.info(`Invalidated cache for ${apiPath}`);
+      loggy.info(`Invalidated cache for ${key}`);
     } catch (error) {
       loggy.error('Cache invalidation error:');
       loggy.error(error);
