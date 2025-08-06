@@ -37,7 +37,7 @@ const middleware = async (ctx: Context, next: any) => {
     const cacheHeaders = strapi.plugin('strapi-cache').config('cacheHeaders') as boolean;
     if (cacheEntry) {
       loggy.info(`HIT with key: ${key}`);
-      ctx.status = 200;
+      ctx.status = cacheEntry.status;
       ctx.body = cacheEntry.body;
       if (cacheHeaders) {
         ctx.set(cacheEntry.headers);
