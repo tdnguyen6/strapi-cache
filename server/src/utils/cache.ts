@@ -7,7 +7,7 @@ async function _getCacheEntry(
   cancelRef: { cancel: boolean },
   cacheStore: CacheProvider,
   key,
-  delayMs = 100
+  delayMs
 ) {
   const cacheEntry = await cacheStore.get(key);
   if (cacheEntry) {
@@ -22,13 +22,16 @@ async function _getCacheEntry(
 export async function getCacheEntry(
   cacheStore: CacheProvider,
   key,
-  initCacheTimeoutInMs,
   delayMs = 100
 ) {
+  const initCacheTimeoutInMs = strapi
+    .plugin('strapi-cache')
+    .config('initCacheTimeoutInMs') as number;
   try {
     return await withTimeout(
-    (cancelRef) => _getCacheEntry(cancelRef, cacheStore, key, delayMs),
-    initCacheTimeoutInMs);
+      (cancelRef) => _getCacheEntry(cancelRef, cacheStore, key, delayMs),
+      initCacheTimeoutInMs
+    );
   } catch (e) {
     loggy.error(e);
   }

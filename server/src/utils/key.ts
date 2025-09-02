@@ -1,46 +1,50 @@
-import { Context } from 'koa';
-import { b64encode } from './b64';
 import * as jwt from 'jsonwebtoken';
+import { hash } from './hash';
+import stringify from 'fast-json-stable-stringify';
 
-export const generateCacheKey = (context: Context) => {
-  const { url } = context.request;
-  const { method } = context.request;
-  const auth = strapi.plugin('strapi-cache').config('auth') as string;
-  if (auth === 'before') {
-    return `${method}:${url}`;
+const _generateCacheKey = (
+  method: string,
+  path: string,
+  payload: {} | undefined,
+  auth?: string
+) => {
+  const prefix = `${method}:${path}`;
+  const suffixes = [];
+  if (payload) {
+    const deterministicPayload = stringify(payload);
+    suffixes.push(deterministicPayload);
   }
-  const cacheAuthorizedRequests = strapi
-      .plugin('strapi-cache')
-      .config('cacheAuthorizedRequests') as boolean;
-  const authorizationHeader = context.request.headers['authorization'];
-  if (cacheAuthorizedRequests && authorizationHeader) {
-      const token = authorizationHeader.replace(/^Bearer /, "");
-      const decodedJwt = jwt.decode(token);
-      if (decodedJwt) {
-        return `${method}:${url}:id-${decodedJwt['id']}`;
-      }
-      return `${method}:${url}:${token}`;
+  if (auth) {
+    suffixes.push(auth);
   }
-  return `${method}:${url}`;
+  const suffixToHash = suffixes.join('');
+  if (!suffixToHash) return prefix;
+  const alg = strapi.plugin('strapi-cache').config('hashCacheKey') as string | undefined;
+  const hashedSuffix = hash(stringify(suffixToHash), alg);
+  return `${prefix}:${hashedSuffix}`;
 };
 
-export const generateGraphqlCacheKey = (context: Context, payload: string) => {
-  const b64payload = b64encode(payload);
-  const auth = strapi.plugin('strapi-cache').config('auth') as string;
-  if (auth === 'before') {
-    return `POST:/graphql:${b64payload}`;
+const generateCacheKeyWithAuth = (
+  method: string,
+  path: string,
+  payload: {} | undefined,
+  authorizationHeader: string
+) => {
+  const token = authorizationHeader.replace(/^Bearer /, '');
+  const decodedJwt = jwt.decode(token);
+  if (decodedJwt) {
+    return _generateCacheKey(method, path, payload, `id-${decodedJwt['id']}`);
   }
-  const cacheAuthorizedRequests = strapi
-      .plugin('strapi-cache')
-      .config('cacheAuthorizedRequests') as boolean;
-  const authorizationHeader = context.request.headers['authorization'];
-  if (cacheAuthorizedRequests && authorizationHeader) {
-      const token = authorizationHeader.replace(/^Bearer /, "");
-      const decodedJwt = jwt.decode(token);
-      if (decodedJwt) {
-        return `POST:/graphql:${b64payload}:id-${decodedJwt['id']}`;
-      }
-      return `POST:/graphql:${b64payload}:${token}`;
-  }
-  return `POST:/graphql:${b64payload}`;
+  return _generateCacheKey(method, path, payload, token);
+};
+
+export const generateCacheKey = (
+  method: string,
+  path: string,
+  payload: {} | undefined,
+  authorizationHeader: string
+) => {
+  return authorizationHeader
+    ? generateCacheKeyWithAuth(method, path, payload, authorizationHeader)
+    : _generateCacheKey(method, path, payload);
 };
