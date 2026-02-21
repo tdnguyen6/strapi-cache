@@ -15,6 +15,10 @@ export default ({ env }) => ({
       redisClusterOptions: {}, // Options for ioredis redis cluster client. redisOptions key is taken from redisConfig parameter above if not set here. See https://ioredis.readthedocs.io/en/stable/README for references
       cacheHeaders: true,
       cacheAuthorizedRequests: false,
+      cacheGetTimeoutInMs: 1000, // Timeout for getting cached data in milliseconds (default is 1 seconds)
+      hashCacheKey: "sha1", // whether to hash cached key, input an algorithm support by nodejs crypto
+      initCacheTimeoutInMs: 10000, // Timeout for init cache lock in milliseconds (default is 10 seconds)
+      auth: 'after', // Whether strapi auth run before or after this plugin middleware
     },
   },
 });
@@ -37,6 +41,10 @@ export default ({ env }) => ({
 //       redisClusterOptions: {}, // Options for ioredis redis cluster client. redisOptions key is taken from redisConfig parameter above if not set here. See https://ioredis.readthedocs.io/en/stable/README for references
 //       cacheHeaders: true,
 //       cacheAuthorizedRequests: false,
+//       cacheGetTimeoutInMs: 1000, // Timeout for getting cached data in milliseconds (default is 1 seconds)
+//       hashCacheKey: "sha1", // whether to hash cached key, input an algorithm support by nodejs crypto
+//       initCacheTimeoutInMs: 10000, // Timeout for init cache lock in milliseconds (default is 10 seconds)
+//       auth: 'after', // Whether strapi auth run before or after this plugin middleware
 //     },
 //   },
 // });
@@ -67,7 +75,12 @@ export default ({ env }) => ({
 //         scaleReads: "all"
 //       }, // Options for ioredis redis cluster client. redisOptions key is taken from redisConfig parameter above if not set here. See https://ioredis.readthedocs.io/en/stable/README for references
 //       cacheHeaders: true,
+
 //       cacheAuthorizedRequests: false,
+//       cacheGetTimeoutInMs: 1000, // Timeout for getting cached data in milliseconds (default is 1 seconds)
+//       hashCacheKey: "sha1", // whether to hash cached key, input an algorithm support by nodejs crypto
+//       initCacheTimeoutInMs: 10000, // Timeout for init cache lock in milliseconds (default is 10 seconds)
+//       auth: 'after', // Whether strapi auth run before or after this plugin middleware
 //     },
 //   },
 // });

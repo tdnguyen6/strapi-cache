@@ -1,8 +1,9 @@
-export const withTimeout = (callback: () => Promise<any>, ms: number) => {
+export const withTimeout = (callback: (cancelRef?: {cancel: boolean}) => Promise<any>, ms: number) => {
   let timeout: NodeJS.Timeout | null = null;
+  const cancelRef = {cancel: false};
 
   return Promise.race([
-    callback().then((result) => {
+    callback(cancelRef).then((result) => {
       if (timeout) {
         clearTimeout(timeout);
       }
@@ -10,6 +11,7 @@ export const withTimeout = (callback: () => Promise<any>, ms: number) => {
     }),
     new Promise((_, reject) => {
       timeout = setTimeout(() => {
+        cancelRef.cancel = true;
         reject(new Error('timeout'));
       }, ms);
     }),

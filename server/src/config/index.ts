@@ -1,3 +1,5 @@
+import * as crypto from 'crypto';
+
 export default {
   default: ({ env }) => ({
     debug: false,
@@ -13,6 +15,9 @@ export default {
     cacheHeaders: true,
     cacheAuthorizedRequests: false,
     cacheGetTimeoutInMs: 1000,
+    hashCacheKey: undefined,
+    initCacheTimeoutInMs: 10000,
+    auth: 'after',
   }),
   validator: (config) => {
     if (typeof config.debug !== 'boolean') {
@@ -64,6 +69,21 @@ export default {
     }
     if (typeof config.cacheGetTimeoutInMs !== 'number') {
       throw new Error(`Invalid config: cacheGetTimeoutInMs must be a number`);
+    }
+    if (config.hashCacheKey) {
+      if (typeof config.hashCacheKey !== 'string') {
+        throw new Error(`Invalid config: hashCacheKey must be a string if defined`);
+      }
+      const algList = crypto.getHashes();
+      if (!algList.includes(config.hashCacheKey)) {
+        throw new Error (`NotImplementedError: ${config.hashCacheKey} is not implemented by nodejs crypto`);
+      }
+    }
+    if (typeof config.initCacheTimeoutInMs !== 'number') {
+      throw new Error(`Invalid config: initCacheTimeoutInMs must be a number`);
+    }
+    if (typeof config.auth !== 'string' || !(config.auth === 'after' || config.auth === 'before')) {
+      throw new Error(`Invalid config: auth must be either before or after`);
     }
   },
 };
